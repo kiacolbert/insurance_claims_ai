@@ -1,0 +1,49 @@
+# .gitignore
+
+# API Keys - NEVER COMMIT THESE!
+.env
+.env.*
+!.env.example
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data - don't commit customer data!
+data/*.pdf
+data/*.csv
+data/*.json
+!data/.gitkeep
+!data/sample_policies/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Docker
+.dockerignore
