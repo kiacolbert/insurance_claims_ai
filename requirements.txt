@@ -1,0 +1,26 @@
+# LLM APIs
+anthropic==0.18.1
+openai==1.12.0
+
+# Framework
+langchain==0.1.9
+langchain-community==0.0.24
+langchain-openai==0.0.6
+
+# Vector DB
+chromadb==0.4.22
+
+# API & Web
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+streamlit==1.31.1
+
+# Utilities
+python-dotenv==1.0.1
+tiktoken==0.6.0
+pydantic==2.6.1
+redis==5.0.1
+
+# Data processing
+pypdf==4.0.1
+beautifulsoup4==4.12.3

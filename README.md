@@ -31,8 +31,8 @@ An AI-powered assistant that answers questions about insurance policies using:
 
 ### Prerequisites
 
-- Python 3.11+
-- Docker (optional)
+- **Python 3.11 or 3.12** (3.13 not yet supported by ChromaDB)
+- Docker (optional, for Redis)
 - Anthropic or OpenAI API key
 
 ### Installation
@@ -201,11 +201,6 @@ pytest-watch
 
 MIT License - see [LICENSE](LICENSE)
 
-## 👤 Author
-
-**Your Name**
-- GitHub: [@yourusername](https://github.com/kiacolbert)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/kiacolbert)
 
 ## 🙏 Acknowledgments
 
