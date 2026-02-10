@@ -2,6 +2,9 @@
 anthropic==0.77.1
 openai==1.12.0
 
+# Embeddings
+voyageai==0.3.7
+
 # Framework
 langchain==0.1.9
 langchain-community==0.0.24
