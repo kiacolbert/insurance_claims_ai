@@ -3,21 +3,29 @@ Day 2: Q&A with caching
 Same as Day 1 but now with cache layer
 """
 
+from urllib import response
 from anthropic import Anthropic
 from dotenv import load_dotenv
 import os
 import time
 from src.cache import get_cache
+import json
 
 load_dotenv()
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 cache = get_cache()
 
-# Same policy document as Day 1
-POLICY_DOCUMENT = """
-AUTO INSURANCE POLICY - Summary
-[... same content as Day 1 ...]
-"""
+# Load documents
+with open('insurance_docs.json') as f:
+    DOCS = json.load(f)
+
+# Build simple knowledge base (first 5 docs as context)
+KNOWLEDGE_BASE = "\n\n---\n\n".join([
+    f"Q: {doc['question']}\nA: {doc['content']}" 
+    for doc in DOCS[:5]
+])
+
+CACHE_FILE = 'qa_cache.json'
 
 def ask_question(question: str) -> tuple[str, bool, float]:
     """
@@ -37,15 +45,15 @@ def ask_question(question: str) -> tuple[str, bool, float]:
     # Not in cache, call LLM
     prompt = f"""You are an insurance policy assistant helping customers understand their coverage.
 
-Policy Document:
-{POLICY_DOCUMENT}
+Knowledge Base:
+{KNOWLEDGE_BASE}
 
 Customer Question: {question}
 
 Instructions:
-- Answer based ONLY on the policy document provided
+- Answer based ONLY on the knowledge base provided
 - Be clear and concise
-- If the information isn't in the policy, say "This information is not covered in your policy document"
+- If the information isn't in the knowledge base, say "This information is not covered in the provided knowledge base"
 - Cite specific sections when possible
 
 Answer:"""
@@ -56,6 +64,12 @@ Answer:"""
         temperature=0,
         messages=[{"role": "user", "content": prompt}]
     )
+    
+    # After client.messages.create()
+    tokens_used = response.usage.input_tokens + response.usage.output_tokens
+    cost = (tokens_used / 1_000_000) * 0.25  # Haiku pricing
+
+    print(f"💰 Cost: ${cost:.4f} | 🔢 Tokens: {tokens_used}")
     
     answer = response.content[0].text
     
