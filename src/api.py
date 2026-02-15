@@ -35,17 +35,17 @@ except ImportError:
         """Mock context retrieval"""
         return [
             {
-                'text': 'Your collision deductible is $500 per accident.',
+                'context': 'Your collision deductible is $500 per accident.',
                 'metadata': {'source': 'auto_policy_2024.pdf', 'chunk_id': 'chunk_12'},
                 'similarity': 0.89
             },
             {
-                'text': 'Comprehensive coverage has a $250 deductible.',
+                'context': 'Comprehensive coverage has a $250 deductible.',
                 'metadata': {'source': 'auto_policy_2024.pdf', 'chunk_id': 'chunk_15'},
                 'similarity': 0.75
             },
             {
-                'text': 'You can file claims by calling 1-800-CLAIMS or online.',
+                'context': 'You can file claims by calling 1-800-CLAIMS or online.',
                 'metadata': {'source': 'claims_guide.pdf', 'chunk_id': 'chunk_3'},
                 'similarity': 0.68
             }
@@ -227,6 +227,7 @@ async def ask_question(request: QuestionRequest):
         
         # Cache the answer
         cache.set(request.question, answer)
+        print(f"context: {contexts[0]}")
         
         # Build sources list
         sources = [
@@ -234,7 +235,7 @@ async def ask_question(request: QuestionRequest):
                 document=ctx['metadata'].get('source', 'Unknown'),
                 chunk_id=ctx['metadata'].get('chunk_id', 'unknown'),
                 similarity=round(ctx['similarity'], 4),
-                text=ctx['text'][:200] + "..." if len(ctx['text']) > 200 else ctx['text']
+                text=ctx['content'][:200] + "..." if len(ctx['content']) > 200 else ctx['text']
             )
             for ctx in contexts
         ]
