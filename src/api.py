@@ -2,7 +2,7 @@
 Day 7: FastAPI REST API for Insurance Claims RAG System
 
 Endpoints:
-- GET  /health       - Health check
+- GET  /health        - Health check
 - POST /ask          - Ask a question (RAG)
 - GET  /cache/stats  - Cache statistics
 - DELETE /cache      - Clear cache
@@ -12,25 +12,90 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from contextlib import asynccontextmanager
 import time
 from datetime import datetime
 
-# Import your existing RAG components
-# You'll need to adapt these imports based on your actual file structure
+# Import cache and cost tracking (standalone modules)
+from cache import get_cache
+from cost_tracker import get_tracker
+
+# Try to import RAG components (optional - API works without them in demo mode)
 try:
     from day6_rag import ask_with_rag, retrieve_context
-    from src.cache import get_cache
-    from src.cost_tracker import get_tracker
     RAG_AVAILABLE = True
 except ImportError:
-    print("⚠️  Warning: RAG components not found. Using mock mode.")
+    print("⚠️  Warning: RAG components not found. API running in DEMO mode.")
+    print("    The API will work, but /ask endpoint will return mock responses.")
+    print("    To enable full RAG, make sure you have day6_rag.py")
     RAG_AVAILABLE = False
+    
+    # Mock functions for demo mode
+    def retrieve_context(question: str, top_k: int = 3):
+        """Mock context retrieval"""
+        return [
+            {
+                'text': 'Your collision deductible is $500 per accident.',
+                'metadata': {'source': 'auto_policy_2024.pdf', 'chunk_id': 'chunk_12'},
+                'similarity': 0.89
+            },
+            {
+                'text': 'Comprehensive coverage has a $250 deductible.',
+                'metadata': {'source': 'auto_policy_2024.pdf', 'chunk_id': 'chunk_15'},
+                'similarity': 0.75
+            },
+            {
+                'text': 'You can file claims by calling 1-800-CLAIMS or online.',
+                'metadata': {'source': 'claims_guide.pdf', 'chunk_id': 'chunk_3'},
+                'similarity': 0.68
+            }
+        ]
+    
+    def ask_with_rag(question: str, stream: bool = False):
+        """Mock RAG response"""
+        import random
+        responses = [
+            "Based on your policy, your collision deductible is $500 per accident.",
+            "To file a claim, you can call 1-800-CLAIMS or visit our website within 24 hours of the incident.",
+            "Yes, your policy includes uninsured motorist coverage at no additional cost.",
+            "Your comprehensive coverage includes a $250 deductible for incidents like theft, vandalism, or weather damage."
+        ]
+        return random.choice(responses)
 
-# Initialize FastAPI app
+# ===== LIFESPAN EVENT HANDLER =====
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events
+    
+    This replaces the deprecated @app.on_event("startup") and @app.on_event("shutdown")
+    """
+    # Startup
+    print("\n" + "="*60)
+    print("🚀 Insurance Claims AI API Starting...")
+    print("="*60)
+    print(f"RAG System: {'✅ Available' if RAG_AVAILABLE else '⚠️  Demo Mode'}")
+    print(f"Docs: http://localhost:8000/docs")
+    print("="*60 + "\n")
+    
+    yield  # Application runs here
+    
+    # Shutdown
+    print("\n👋 Shutting down Insurance Claims AI API")
+    print("Cleaning up resources...")
+    
+    # Optional: Add cleanup here if needed
+    # e.g., close database connections, save cache to disk, etc.
+    cache = get_cache()
+    print(f"Final cache stats: {len(cache)} items cached\n")
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="Insurance Claims AI API",
     description="RAG-powered Q&A system for insurance policies",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan  # Use lifespan instead of on_event
 )
 
 # Add CORS middleware (for frontend access)
@@ -52,7 +117,7 @@ class QuestionRequest(BaseModel):
     top_k: int = Field(3, ge=1, le=10, 
                       description="Number of context chunks to retrieve")
     
-    class Config:
+    class ConfigDict:
         json_schema_extra = {
             "example": {
                 "question": "What is my collision deductible?",
@@ -131,12 +196,6 @@ async def ask_question(request: QuestionRequest):
     
     Returns answer with source citations and metadata.
     """
-    if not RAG_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="RAG system not available. Check server logs."
-        )
-    
     start_time = time.time()
     
     try:
@@ -191,9 +250,18 @@ async def ask_question(request: QuestionRequest):
         )
         
     except Exception as e:
+        import traceback
+        error_details = {
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+        print(f"\n❌ ERROR in /ask endpoint:")
+        print(f"   {error_details}\n")
+        
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing question: {str(e)}"
+            detail=f"Error processing question: {type(e).__name__}: {str(e)}"
         )
 
 @app.get("/cache/stats", response_model=CacheStatsResponse, tags=["Cache"])
@@ -257,23 +325,6 @@ async def get_cost_stats():
         "timestamp": datetime.now().isoformat()
     }
 
-# ===== STARTUP/SHUTDOWN EVENTS =====
-
-@app.on_event("startup")
-async def startup_event():
-    """Run on API startup"""
-    print("\n" + "="*60)
-    print("🚀 Insurance Claims AI API Starting...")
-    print("="*60)
-    print(f"RAG System: {'✅ Available' if RAG_AVAILABLE else '❌ Not Available'}")
-    print(f"Docs: http://localhost:8000/docs")
-    print("="*60 + "\n")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Run on API shutdown"""
-    print("\n👋 Shutting down Insurance Claims AI API\n")
-
 # ===== RUN SERVER =====
 
 if __name__ == "__main__":
@@ -283,8 +334,8 @@ if __name__ == "__main__":
     print("Visit: http://localhost:8000/docs for interactive API docs")
     
     uvicorn.run(
-        app,
+        "api:app",  # Import string instead of app object
         host="0.0.0.0",
         port=8000,
-        reload=True  # Auto-reload on code changes (dev only)
+        reload=True  # Now reload works properly
     )
