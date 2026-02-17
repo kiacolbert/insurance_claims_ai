@@ -71,15 +71,4 @@ def test_real_anthropic_client():
     
     assert "Hello" in response
     
-def test_real_anthropic_client():
-    """Integration test with real Anthropic API (skipped by default)"""
-    import os
     
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key or api_key == "test-key-not-real":
-        pytest.skip("Real API key not available")
-    
-    client = AnthropicClient(api_key)
-    response = client.generate("Say 'Hello, World!' and nothing else.")
-    
-    assert "Hello" in response
