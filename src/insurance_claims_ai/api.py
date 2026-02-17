@@ -9,10 +9,10 @@ Endpoints:
 """
 
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Protocol, runtime_checkable
 from contextlib import asynccontextmanager
 import time
 from datetime import datetime
@@ -20,6 +20,23 @@ from datetime import datetime
 # Import cache and cost tracking (standalone modules)
 from insurance_claims_ai.cache import get_cache
 from insurance_claims_ai.cost_tracker import get_tracker
+
+# Add this Protocol right after imports, before lifespan
+@runtime_checkable
+class RAGFunction(Protocol):
+    """Protocol for RAG function - enables mocking"""
+    def __call__(self, question: str, stream: bool = False) -> str:
+        ...
+
+# Mock implementation for testing
+class MockRAGFunction:
+    """Drop-in replacement for ask_with_rag during tests"""
+    def __call__(self, question: str, stream: bool = False) -> str:
+        if "deductible" in question.lower():
+            return "Your collision deductible is $500 per accident."
+        elif "claim" in question.lower():
+            return "To file a claim, call 1-800-CLAIMS within 24 hours."
+        return "Based on your policy, here is the relevant information."
 
 # Try to import RAG components (optional - API works without them in demo mode)
 try:
@@ -67,6 +84,17 @@ except ImportError:
 
 # Check if we're in test mode
 IS_TEST = os.getenv("TESTING", "false").lower() == "true"
+
+# Add this dependency function
+def get_rag_function() -> RAGFunction:
+    """
+    Dependency: returns real or mock RAG function
+    Override this in tests via app.dependency_overrides
+    """
+    if IS_TEST:
+        return MockRAGFunction()
+    
+    return ask_with_rag
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -182,56 +210,48 @@ async def health_check():
     )
 
 @app.post("/ask", response_model=AnswerResponse, tags=["Q&A"])
-async def ask_question(request: QuestionRequest):
-    """
-    Ask a question about insurance policies using RAG
-    
-    - **question**: Your question about the insurance policy
-    - **use_cache**: Whether to use cached responses (default: true)
-    - **top_k**: Number of relevant document chunks to retrieve (1-10)
-    
-    Returns answer with source citations and metadata.
-    """
+async def ask_question(
+    request: QuestionRequest,
+    rag_fn: RAGFunction = Depends(get_rag_function)
+):
     start_time = time.time()
     
     try:
-        # Check cache first if enabled
         cache = get_cache()
-        cached_answer = None
+        tracker = get_tracker() 
         
         if request.use_cache:
             cached_answer = cache.get(request.question)
+        else:
+            cached_answer = None
         
         if cached_answer:
-            # Return cached response
             response_time = int((time.time() - start_time) * 1000)
+            tracker.track_request(was_cached=True) 
             
             return AnswerResponse(
                 answer=cached_answer,
-                sources=[],  # Cached responses don't include sources
+                sources=[],
                 cached=True,
                 response_time_ms=response_time,
                 timestamp=datetime.now().isoformat()
             )
         
-        # Not cached - perform RAG
-        # First, retrieve context
+        # Not cached
         contexts = retrieve_context(request.question, top_k=request.top_k)
+        answer = rag_fn(request.question, stream=False)
         
-        # Generate answer with RAG
-        answer = ask_with_rag(request.question, stream=False)
+        if request.use_cache:
+            cache.set(request.question, answer)
         
-        # Cache the answer
-        cache.set(request.question, answer)
-        print(f"context: {contexts[0]}")
-        
-        # Build sources list
+        tracker.track_request(was_cached=False)
+
         sources = [
             Source(
                 document=ctx['metadata'].get('source', 'Unknown'),
                 chunk_id=ctx['metadata'].get('chunk_id', 'unknown'),
                 similarity=round(ctx['similarity'], 4),
-                text=ctx['content'][:200] + "..." if len(ctx['content']) > 200 else ctx['text']
+                text=ctx['content'][:200] + "..." if len(ctx['content']) > 200 else ctx['content']  # ← FIX typo
             )
             for ctx in contexts
         ]
@@ -248,19 +268,12 @@ async def ask_question(request: QuestionRequest):
         
     except Exception as e:
         import traceback
-        error_details = {
-            "error": str(e),
-            "type": type(e).__name__,
-            "traceback": traceback.format_exc()
-        }
-        print(f"\n❌ ERROR in /ask endpoint:")
-        print(f"   {error_details}\n")
-        
+        print(f"\n❌ ERROR in /ask endpoint: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing question: {type(e).__name__}: {str(e)}"
         )
-
+        
 @app.get("/cache/stats", response_model=CacheStatsResponse, tags=["Cache"])
 async def get_cache_stats():
     """
@@ -268,9 +281,6 @@ async def get_cache_stats():
     
     Returns metrics about cache performance including hit rate.
     """
-    if not RAG_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Cache not available")
-    
     cache = get_cache()
     stats = cache.stats()
     
@@ -283,9 +293,6 @@ async def clear_cache():
     
     Use with caution - this will remove all cached responses.
     """
-    if not RAG_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Cache not available")
-    
     cache = get_cache()
     items_cleared = len(cache.cache)
     cache.clear()
@@ -303,9 +310,6 @@ async def get_cost_stats():
     
     Returns detailed metrics about API costs and savings from caching.
     """
-    if not RAG_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Cost tracker not available")
-    
     tracker = get_tracker()
     stats = tracker.get_stats()
     

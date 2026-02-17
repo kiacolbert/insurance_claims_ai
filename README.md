@@ -59,7 +59,7 @@ cp .env.example .env
 python src/hello_llm.py
 
 # Full API
-uvicorn src.api:app --reload
+uvicorn insurance_claims_ai.api:app --reload
 
 # Visit: http://localhost:8000/docs
 ```

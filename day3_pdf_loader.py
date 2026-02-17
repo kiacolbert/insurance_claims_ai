@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 from pypdf import PdfReader
-from src.cache import get_cache
+from insurance_claims_ai.cache import get_cache
 
 load_dotenv()
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))

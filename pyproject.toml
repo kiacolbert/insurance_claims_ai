@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "insurance_claims_ai"
+version = "0.1.0"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
