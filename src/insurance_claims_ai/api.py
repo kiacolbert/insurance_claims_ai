@@ -40,7 +40,7 @@ class MockRAGFunction:
 
 # Try to import RAG components (optional - API works without them in demo mode)
 try:
-    from insurance_claims_ai.day6_rag import ask_with_rag, retrieve_context
+    from insurance_claims_ai.retriever import ask_with_rag, retrieve_context
     RAG_AVAILABLE = True
 except ImportError:
     print("⚠️  Warning: RAG components not found. API running in DEMO mode.")
