@@ -1,5 +1,5 @@
 """
-Day 7: FastAPI REST API for Insurance Claims RAG System
+FastAPI REST API for Insurance Claims RAG System
 
 Endpoints:
 - GET  /health        - Health check
