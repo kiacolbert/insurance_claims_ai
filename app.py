@@ -5,13 +5,17 @@ Run:  streamlit run app.py
 Requires FastAPI backend running at http://localhost:8000
 """
 
+import os
 import streamlit as st
 import requests
 import time
 from datetime import datetime
 
 # ── Config ──────────────────────────────────────────────────
-API_BASE = "http://localhost:8000"
+# Reads API_BASE_URL env var so Docker Compose can inject the right address.
+# Falls back to localhost for local development.
+
+API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="Claims AI",

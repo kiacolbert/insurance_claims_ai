@@ -1,6 +1,5 @@
-# day5_create_vectordb.py
 """
-Day 5: Create Vector Database with Robust Rate Limiting
+Create Vector Database with Robust Rate Limiting
 Handles Voyage AI rate limits: 3 RPM, 10K TPM
 """
 
@@ -104,7 +103,8 @@ def main():
     # Initialize clients
     print("\n1. Initializing clients...")
     voyage_client = VoyageClient(api_key=os.getenv("VOYAGE_API_KEY"))
-    chroma_client = chromadb.PersistentClient(path="./chroma_db")
+    CHROMA_PATH = os.getenv("CHROMA_DB_PATH", "./data/chroma_db")
+    chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
     print("   ✅ Clients initialized")
     
     # Load documents

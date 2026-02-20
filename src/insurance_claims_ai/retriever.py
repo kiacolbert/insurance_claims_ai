@@ -19,17 +19,9 @@ load_dotenv()
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 voyage_client = VoyageClient(api_key=os.getenv("VOYAGE_API_KEY"))
 
-# Connect to ChromaDB
-# Get the directory where THIS file is located
-THIS_DIR = Path(__file__).parent
+CHROMA_PATH = os.getenv("CHROMA_DB_PATH", "./data/chroma_db")
+chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 
-# Build path relative to this file
-CHROMA_DB_PATH = THIS_DIR / "../../chroma_db"
-
-# Or resolve to absolute path (safer)
-CHROMA_DB_PATH = (THIS_DIR / "../../chroma_db").resolve()
-
-chroma_client = chromadb.PersistentClient(path=str(CHROMA_DB_PATH))
 collection = chroma_client.get_collection("insurance_docs")
 
 print(f"✅ Connected to database ({collection.count()} documents)")
