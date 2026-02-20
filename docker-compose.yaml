@@ -1,0 +1,58 @@
+# ============================================================
+# Usage:
+#   docker-compose up --build       # First run
+#   docker-compose up               # Subsequent runs
+#   docker-compose down             # Stop everything
+#   docker-compose logs -f api      # Tail API logs
+#   docker-compose logs -f ui       # Tail UI logs
+# ============================================================
+
+version: "3.11"
+
+services:
+
+  # ── FastAPI Backend ────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: claims-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - CHROMA_DB_PATH=/app/data/chroma_db
+      - TESTING=false
+    volumes:
+      # Persist ChromaDB across container restarts
+      - chroma_data:/app/data/chroma_db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Streamlit Frontend ────────────────────────────────────
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: claims-ui
+    ports:
+      - "8501:8501"
+    environment:
+      # Points to the API service by container name (Docker internal DNS)
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ── Named Volumes ─────────────────────────────────────────────
+volumes:
+  chroma_data:
+    driver: local
