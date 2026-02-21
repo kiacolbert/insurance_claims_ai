@@ -210,10 +210,16 @@ html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif !important;
     background: #FFFFFF !important;
     font-size: 0.95rem !important;
+    color: #888 !important;
 }
 .stTextInput > div > div > input:focus {
     border-color: #1A1A2E !important;
     box-shadow: 0 0 0 2px rgba(26,26,46,0.1) !important;
+}
+
+.stTextInput > div > div > input::placeholder {
+    color: #888 !important;
+    opacity: 1 !important;
 }
 
 /* Buttons */
@@ -250,6 +256,11 @@ hr { border-color: #E5E0D8; }
     cursor: pointer;
     margin: 4px;
     transition: all 0.15s;
+}
+
+.stSpinner > div {
+    border-top-color: #1A1A2E !important;
+    color: #888 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -429,7 +440,6 @@ if not st.session_state.messages:
         with cols[i % 2]:
             if st.button(s, key=f"sug_{i}", use_container_width=True):
                 st.session_state.pending_question = s
-                st.rerun()
 
     st.markdown("---")
 
@@ -483,46 +493,42 @@ for msg in st.session_state.messages:
                     )
 
 # ── Input ──────────────────────────────────────────────────────
-st.markdown("")
-col_input, col_btn = st.columns([5, 1])
+with st.form("question_form", clear_on_submit=True):
+    col_input, col_btn = st.columns([5, 1])
+    with col_input:
+        question = st.text_input(
+            "question",
+            placeholder="Ask about your insurance policy...",
+            label_visibility="collapsed",
+        )
+    with col_btn:
+        send = st.form_submit_button("Ask →")
 
-# Clear pending after using it
-if st.session_state.pending_question:
+final_question = ""
+if send and question.strip():
+    final_question = question.strip()
+elif st.session_state.get("pending_question"):
+    final_question = st.session_state.pending_question
     st.session_state.pending_question = ""
 
-with col_input:
-    default_val = st.session_state.pending_question
-    question = st.text_input(
-        "question",
-        value=default_val,
-        placeholder="Ask about your insurance policy...",
-        label_visibility="collapsed",
-        key="question_input",
-    )
-
-with col_btn:
-    send = st.button("Ask →", use_container_width=True)
-
-# ── Handle submission ──────────────────────────────────────────
-if (send or question) and question and question.strip():
-    # Don't re-process if this exact question was just added
+if final_question:
     already_added = (
         st.session_state.messages
         and st.session_state.messages[-1]["role"] == "user"
-        and st.session_state.messages[-1]["content"] == question.strip()
+        and st.session_state.messages[-1]["content"] == final_question
     )
 
     if not already_added:
-        st.session_state.messages.append({"role": "user", "content": question.strip()})
+        st.session_state.messages.append({"role": "user", "content": final_question})
 
         if not health:
             st.session_state.messages.append({
                 "role": "assistant",
-                "data": {"answer": "⚠️ Backend is offline. Start the FastAPI server and refresh.", "sources": [], "cached": False, "response_time_ms": 0, "timestamp": datetime.now().isoformat()},
+                "data": {"answer": "⚠️ Backend is offline.", "sources": [], "cached": False, "response_time_ms": 0, "timestamp": datetime.now().isoformat()},
             })
         else:
             with st.spinner("Searching policy documents..."):
-                result = ask_question(question.strip(), top_k=top_k, use_cache=use_cache)
+                result = ask_question(final_question, top_k=top_k, use_cache=use_cache)
 
             if result and "error" not in result:
                 st.session_state.messages.append({"role": "assistant", "data": result})
