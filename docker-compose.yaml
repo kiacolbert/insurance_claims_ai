@@ -1,13 +1,11 @@
 # ============================================================
 # Usage:
-#   docker-compose up --build       # First run
-#   docker-compose up               # Subsequent runs
-#   docker-compose down             # Stop everything
-#   docker-compose logs -f api      # Tail API logs
-#   docker-compose logs -f ui       # Tail UI logs
+#   docker compose up --build       # First run
+#   docker compose up               # Subsequent runs
+#   docker compose down             # Stop everything
+#   docker compose logs -f api      # Tail API logs
+#   docker compose logs -f ui       # Tail UI logs
 # ============================================================
-
-version: "3.11"
 
 services:
 

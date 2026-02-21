@@ -97,7 +97,7 @@ def batch_texts_by_tokens(texts, max_tokens=MAX_TOKENS_PER_REQUEST):
 
 def main():
     print("=" * 70)
-    print("DAY 5: CREATE VECTOR DATABASE (WITH RATE LIMITING)")
+    print("CREATE VECTOR DATABASE (WITH RATE LIMITING)")
     print("=" * 70)
     
     # Initialize clients

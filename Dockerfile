@@ -17,21 +17,7 @@ FROM base AS deps
 COPY requirements.txt .
 
 # Install all deps EXCEPT streamlit (backend container doesn't need it)
-RUN pip install --no-cache-dir \
-    fastapi \
-    "uvicorn[standard]" \
-    pydantic \
-    pydantic-settings \
-    anthropic \
-    voyageai \
-    chromadb \
-    pypdf \
-    langchain-text-splitters \
-    langchain-community \
-    langchain-core \
-    tiktoken \
-    python-dotenv \
-    requests
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Final image ───────────────────────────────────────────────
 FROM base AS production
@@ -63,4 +49,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "insurance_claims_ai.api:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY entrypoint.sh .
+
+ENTRYPOINT ["./entrypoint.sh"]

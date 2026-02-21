@@ -256,6 +256,7 @@ hr { border-color: #E5E0D8; }
 
 
 # ── API Helpers ───────────────────────────────────────────────
+@st.cache_data(ttl=5)
 def check_health() -> dict | None:
     try:
         r = requests.get(f"{API_BASE}/health", timeout=3)
@@ -275,14 +276,16 @@ def ask_question(question: str, top_k: int = 3, use_cache: bool = True) -> dict 
         return {"error": "Cannot connect to API. Is the backend running?"}
     except Exception as e:
         return {"error": str(e)}
-
+    
+@st.cache_data(ttl=10)
 def get_cache_stats() -> dict | None:
     try:
         r = requests.get(f"{API_BASE}/cache/stats", timeout=3)
         return r.json() if r.status_code == 200 else None
     except Exception:
         return None
-
+    
+@st.cache_data(ttl=10)
 def get_cost_stats() -> dict | None:
     try:
         r = requests.get(f"{API_BASE}/cost/stats", timeout=3)
@@ -384,6 +387,8 @@ with st.sidebar:
                 st.success("Cleared")
                 st.rerun()
     with col2:
+        
+        
         if st.button("Clear Chat", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
@@ -481,6 +486,10 @@ for msg in st.session_state.messages:
 st.markdown("")
 col_input, col_btn = st.columns([5, 1])
 
+# Clear pending after using it
+if st.session_state.pending_question:
+    st.session_state.pending_question = ""
+
 with col_input:
     default_val = st.session_state.pending_question
     question = st.text_input(
@@ -493,10 +502,6 @@ with col_input:
 
 with col_btn:
     send = st.button("Ask →", use_container_width=True)
-
-# Clear pending after using it
-if st.session_state.pending_question:
-    st.session_state.pending_question = ""
 
 # ── Handle submission ──────────────────────────────────────────
 if (send or question) and question and question.strip():
