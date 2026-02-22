@@ -16,7 +16,7 @@ class VectorStore:
     def __init__(
         self, 
         collection_name: str = "qa_documents",
-        persist_directory: str = "./data/chroma_db",
+        persist_directory: str = os.getenv("CHROMA_DB_PATH", "./data/chroma_db"),
         embedding_model: str = "voyage-4"
     ):
         """

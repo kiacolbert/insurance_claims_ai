@@ -12,6 +12,8 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
+from insurance_claims_ai.rate_limiter import RateLimiter
+
 
 load_dotenv()
 
@@ -26,6 +28,8 @@ collection = chroma_client.get_collection("insurance_docs")
 
 print(f"✅ Connected to database ({collection.count()} documents)")
 
+rate_limiter = RateLimiter(3, 60)
+
 def retrieve_context(question: str, top_k: int = 3) -> list[dict]:
     """
     Retrieve relevant chunks for a question
@@ -35,6 +39,7 @@ def retrieve_context(question: str, top_k: int = 3) -> list[dict]:
         - metadata: source info
         - similarity: relevance score
     """
+    rate_limiter.wait_if_needed()
     # Generate embedding for question
     query_embedding = voyage_client.embed(
         [question],
