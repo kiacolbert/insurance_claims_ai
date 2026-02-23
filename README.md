@@ -32,43 +32,77 @@ An AI-powered assistant that answers questions about insurance policies using:
 ### Prerequisites
 
 - **Python 3.11 or 3.12** (3.13 not yet supported by ChromaDB)
-- Docker (optional, for Redis)
-- Anthropic or OpenAI API key
+- **Docker + Docker Compose** (recommended)
+- Anthropic API key
+- Voyage AI API key
 
-### Installation
+### Environment Setup
+
 ```bash
 # Clone repository
 git clone https://github.com/YOUR_USERNAME/insurance-claims-ai.git
 cd insurance-claims-ai
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env and add your API keys
 ```
 
-### Run Locally
-```bash
-# Simple Q&A
-python src/hello_llm.py
-
-# Full API
-uvicorn insurance_claims_ai.api:app --reload
-
-# Visit: http://localhost:8000/docs
+Your `.env` file should contain:
+```
+ANTHROPIC_API_KEY=sk-ant-...
+VOYAGE_API_KEY=pa-...
 ```
 
-### Docker
+> ⚠️ **Important:** Always run via Docker Compose — it automatically injects `.env` variables into the container. Running scripts directly with `python` will not have access to these keys.
+
+---
+
+## 🐳 Docker Compose (Recommended)
+
+Docker Compose is the standard way to run this project. It handles all environment variables, networking, and service dependencies automatically.
+
 ```bash
-docker-compose up
-# API available at http://localhost:8000
+# First run — builds images and starts all services
+docker compose up --build
+
+# Subsequent runs
+docker compose up
+
+# Run in background
+docker compose up -d
+
+# Stop everything
+docker compose down
+
+# Tail logs
+docker compose logs -f api    # API logs
+docker compose logs -f ui     # UI logs
+
+# Rebuild after code changes
+docker compose up --build
 ```
+
+### Services
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **API** | http://localhost:8000 | FastAPI backend |
+| **API Docs** | http://localhost:8000/docs | Interactive Swagger UI |
+| **UI** | http://localhost:8501 | Streamlit frontend |
+
+### First-Time Setup: Build Vector Database
+
+Before using the app, ingest your insurance documents into the vector database:
+
+```bash
+# Run ingestion inside the container (uses correct env vars)
+docker compose run api python src/insurance_claims_ai/ingestion.py
+```
+
+> ⚠️ **Note:** Do not run `python src/insurance_claims_ai/ingestion.py` directly — it requires environment variables that are only available inside the Docker container.
+
+---
 
 ## 📖 Usage
 
@@ -94,23 +128,33 @@ print(response.json())
 # }
 ```
 
+---
+
 ## 🏗️ Architecture
+
 ```
 ┌─────────────┐
+│  Streamlit  │
+│     UI      │
+└──────┬──────┘
+       │ HTTP
+┌──────▼──────┐
 │   FastAPI   │
 │     API     │
 └──────┬──────┘
        │
        ├──────► Redis Cache (60% hit rate)
        │
-       ├──────► Vector DB (Chroma/Pinecone)
-       │        └─► Document Embeddings
+       ├──────► Vector DB (ChromaDB)
+       │        └─► Voyage AI Embeddings
        │
-       └──────► LLM (Claude/GPT)
+       └──────► LLM (Claude)
                 └─► Generates Answers
 ```
 
 See [docs/architecture.md](docs/architecture.md) for details.
+
+---
 
 ## 📊 Performance
 
@@ -121,39 +165,45 @@ See [docs/architecture.md](docs/architecture.md) for details.
 | **Cost per Query** | $0.002 |
 | **Accuracy** | 94% (human eval) |
 
+---
+
 ## 🧪 Testing
+
 ```bash
-# Run tests
-pytest tests/ -v
+# Run tests inside container
+docker compose run api pytest tests/ -v
 
 # With coverage
-pytest tests/ --cov=src --cov-report=html
+docker compose run api pytest tests/ --cov=src --cov-report=html
 ```
+
+---
 
 ## 🚢 Deployment
 
-### AWS (Recommended)
-```bash
-# Deploy to AWS ECS
-cd deploy/aws
-./deploy.sh
+### AWS ECS Fargate (Production)
 
-# Or use CloudFormation
+```bash
+# Push to ECR
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin \
+  <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+docker tag insurance-claims-ai:latest \
+  <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/insurance-claims-ai:latest
+
+docker push \
+  <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/insurance-claims-ai:latest
+
+# Deploy via CloudFormation
 aws cloudformation create-stack \
   --stack-name insurance-ai \
-  --template-body file://infrastructure.yml
+  --template-body file://deploy/aws/infrastructure.yml
 ```
 
-### Docker
-```bash
-# Build image
-docker build -t insurance-claims-ai .
+In production, API keys are stored in **AWS Secrets Manager** — no `.env` file needed.
 
-# Run container
-docker run -p 8000:8000 \
-  -e ANTHROPIC_API_KEY=your_key \
-  insurance-claims-ai
-```
+---
 
 ## 💰 Cost Analysis
 
@@ -162,49 +212,53 @@ Based on 10,000 queries/month:
 | Component | Cost/Month |
 |-----------|------------|
 | LLM API (Claude Haiku) | $5.00 |
-| Vector DB (Pinecone free tier) | $0.00 |
+| Embeddings (Voyage AI) | $1.00 |
+| Vector DB (ChromaDB on ECS) | $0.00 |
 | AWS ECS Fargate | $15.00 |
 | Redis (ElastiCache) | $10.00 |
-| **Total** | **$30.00** |
+| **Total** | **$31.00** |
 
-With caching: **$12.00/month** (60% reduction)
+With caching: **~$13.00/month** (60% reduction)
 
-## 📝 Development
-```bash
-# Install dev dependencies
-pip install -r requirements-dev.txt
-
-# Run linting
-black src/ tests/
-flake8 src/ tests/
-mypy src/
-
-# Run tests on save
-pytest-watch
-```
+---
 
 ## 🗺️ Roadmap
 
 - [x] Basic LLM Q&A
-- [x] RAG pipeline
+- [x] RAG pipeline with Voyage AI embeddings
+- [x] ChromaDB vector store
 - [x] Caching layer
-- [x] FastAPI
-- [ ] Streamlit UI
-- [ ] Multi-document support
+- [x] FastAPI backend
+- [x] Streamlit UI
+- [x] Docker Compose setup
+- [ ] AWS ECS Fargate deployment
 - [ ] User authentication
 - [ ] Usage analytics dashboard
 - [ ] CI/CD pipeline
 
+---
 
+## 📝 Development
+
+```bash
+# Install dev dependencies (local, non-Docker)
+pip install -r requirements-dev.txt
+
+# Linting
+black src/ tests/
+flake8 src/ tests/
+mypy src/
+```
+
+---
 
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE)
 
-
 ## 🙏 Acknowledgments
 
-- Built with [LangChain](https://langchain.com/)
+- Embeddings by [Voyage AI](https://voyageai.com/)
 - Powered by [Anthropic Claude](https://anthropic.com/)
 
 ---
