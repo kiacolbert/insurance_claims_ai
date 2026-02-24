@@ -12,4 +12,4 @@ else
 fi
 
 echo "🚀 Starting API..."
-exec uvicorn insurance_claims_ai.api:app --host 0.0.0.0 --port 8000
+exec uvicorn insurance_claims_ai.api:app --host 0.0.0.0 --port 8000 --workers 2
