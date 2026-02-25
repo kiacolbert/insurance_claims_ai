@@ -9,6 +9,7 @@ Endpoints:
 """
 
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -238,8 +239,9 @@ async def ask_question(
             )
         
         # Not cached
-        contexts = retrieve_context(request.question, top_k=request.top_k)
-        answer = rag_fn(request.question, stream=False)
+        loop = asyncio.get_event_loop()
+        contexts = await loop.run_in_executor(None, retrieve_context,request.question, top_k=request.top_k)
+        answer = await loop.run_in_executor(None, rag_fn, request.question, stream=False)
         
         if request.use_cache:
             cache.set(request.question, answer)

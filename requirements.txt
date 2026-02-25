@@ -5,6 +5,7 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.4  # Required by langchain
 pydantic-settings>=2.5.0
+asyncio>=4.0.0
 
 # ============================================
 # RAG & Vector Database
