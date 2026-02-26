@@ -261,6 +261,3 @@ MIT License - see [LICENSE](LICENSE)
 - Embeddings by [Voyage AI](https://voyageai.com/)
 - Powered by [Anthropic Claude](https://anthropic.com/)
 
----
-
-**⭐ If this helped you, please star the repo!**
