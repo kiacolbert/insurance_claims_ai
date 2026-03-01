@@ -22,6 +22,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - VOYAGE_API_KEY=${VOYAGE_API_KEY}
       - CHROMA_DB_PATH=/app/data/chroma_db
+      - REDIS_URL=redis://redis:6379
       - TESTING=false
     volumes:
       # Persist ChromaDB across container restarts
