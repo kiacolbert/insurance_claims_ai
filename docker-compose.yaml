@@ -51,6 +51,14 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Redis Cache ───────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: claims-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
 # ── Named Volumes ─────────────────────────────────────────────
 volumes:
   chroma_data:
